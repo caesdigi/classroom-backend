@@ -6,8 +6,19 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// Configure CORS
+const corsOptions = {
+    origin: [
+      'http://localhost:5173', // Vite default
+      'http://127.0.0.1:5173' // Alternative localhost
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true
+  };
+
+  app.use(cors(corsOptions));
+  app.use(express.json());
 
 // Import routes
 const bookingsRouter = require('./routes/bookings');

@@ -4,10 +4,10 @@ const pool = require('../db');
 // Get bookings for a room/date
 router.get('/', async (req, res) => {
   try {
-    const { room_id, date } = req.query;
+    const { date } = req.query;
     const result = await pool.query(
-      'SELECT * FROM bookings WHERE room_id = $1 AND start_time::date = $2',
-      [room_id, date]
+      'SELECT * FROM bookings WHERE start_time::date = $1',
+      [date]
     );
     res.json(result.rows);
   } catch (err) {
