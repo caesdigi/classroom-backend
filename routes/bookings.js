@@ -6,7 +6,9 @@ router.get('/', async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
     const result = await pool.query(
-      'SELECT * FROM bookings WHERE start_time >= $1 AND end_time <= $2',
+      `SELECT * FROM bookings 
+       WHERE start_time < $2 
+       AND end_time > $1`,
       [start_date, end_date]
     );
     res.json(result.rows);
