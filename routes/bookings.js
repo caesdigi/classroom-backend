@@ -31,11 +31,11 @@ router.post('/', async (req, res) => {
       [room_id, start_time, end_time]
     );
     if (conflictCheck.rows.length > 0) {
-      return res.status(400).json({ error: "Slot already booked" });
+      return res.status(400).json({ error: "This slot is occupied." });
     }
     // Add UID validation
     if (!/^\d{5}$/.test(uid)) {
-      return res.status(400).json({ error: "Invalid UID format" });
+      return res.status(400).json({ error: "Invalid UID - 10 digits needed." });
     }
 
     const result = await pool.query(
@@ -70,14 +70,14 @@ router.post('/cancel', async (req, res) => {
 
     if (result.rows.length === 0) {
       return res.status(400).json({ 
-        error: "Invalid cancellation code or already cancelled" 
+        error: "invalid cancellation code" 
       });
     }
 
     res.json({ success: true });
   } catch (err) {
     console.error('Cancellation error:', err);
-    res.status(500).json({ error: "Cancellation failed" });
+    res.status(500).json({ error: "Cancellation failed." });
   }
 });
 
