@@ -48,38 +48,29 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Cancel booking
+// Cancel route
 router.post('/cancel', async (req, res) => {
   const { booking_id, uid_attempt } = req.body;
   
   try {
-    // Verify UID match
-    const uidCheck = await pool.query(
-      `SELECT id FROM bookings 
+    // Verify UID match using the original cancel_token as UUID
+    const result = await pool.query(
+      `UPDATE bookings 
+       SET is_cancelled = true 
        WHERE id = $1 
        AND uid = $2 
-       AND cancel_token = FALSE`,
+       RETURNING id`,
       [booking_id, uid_attempt]
     );
 
-    if (uidCheck.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(400).json({ error: "Invalid cancellation code" });
     }
-
-    // Mark as cancelled
-    await pool.query(
-      `UPDATE bookings 
-       SET cancel_token = TRUE 
-       WHERE id = $1`,
-      [booking_id]
-    );
 
     res.json({ success: true });
   } catch (err) {
     console.error('Cancellation error:', err);
-    res.status(500).json({ 
-      error: "Cancellation failed. Please try again later." 
-    });
+    res.status(500).json({ error: "Cancellation failed" });
   }
 });
 
