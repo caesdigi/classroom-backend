@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 
 // Create booking
 router.post('/', async (req, res) => {
-  const { room_id, student_name, student_email, student_phone, start_time, end_time } = req.body;
+  const { room_id, student_name, student_email, student_phone, uid, remarks, start_time, end_time } = req.body;
   try {
     // Check for overlapping bookings
     const conflictCheck = await pool.query(
@@ -29,10 +29,16 @@ router.post('/', async (req, res) => {
     if (conflictCheck.rows.length > 0) {
       return res.status(400).json({ error: "Slot already booked" });
     }
+    // Add UID validation
+    if (!/^\d{10}$/.test(uid)) {
+      return res.status(400).json({ error: "UID must be 10 digits" });
+    }
 
     const result = await pool.query(
-      'INSERT INTO bookings (room_id, student_name, student_email, student_phone, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [room_id, student_name, student_email, student_phone, start_time, end_time]
+      `INSERT INTO bookings 
+      (room_id, student_name, student_email, student_phone, uid, remarks, start_time, end_time) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [room_id, student_name, student_email, student_phone, uid, remarks, start_time, end_time]
     );
 
     // Send confirmation email (see next step)
