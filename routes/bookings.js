@@ -52,51 +52,33 @@ router.post('/', async (req, res) => {
 router.post('/cancel', async (req, res) => {
   const { booking_id, uid_attempt } = req.body;
   
-  // Temporary debug logs
-  console.log('Cancellation attempt for booking:', booking_id);
-  console.log('UID attempt:', uid_attempt);
-
   try {
     // Verify UID match
     const uidCheck = await pool.query(
       `SELECT id FROM bookings 
        WHERE id = $1 
        AND uid = $2 
-       AND cancel_token IS FALSE`,
+       AND cancel_token = FALSE`,
       [booking_id, uid_attempt]
     );
 
-    // Debug log query results
-    console.log('UID check results:', uidCheck.rows);
-
     if (uidCheck.rows.length === 0) {
-      console.log('No matching active booking found');
-      return res.status(400).json({ 
-        error: "Invalid cancellation code or already cancelled" 
-      });
+      return res.status(400).json({ error: "Invalid cancellation code" });
     }
 
     // Mark as cancelled
-    const updateResult = await pool.query(
+    await pool.query(
       `UPDATE bookings 
        SET cancel_token = TRUE 
-       WHERE id = $1 
-       RETURNING id`,
+       WHERE id = $1`,
       [booking_id]
     );
 
-    // Debug log update results
-    console.log('Update results:', updateResult.rows);
-
-    res.json({ 
-      success: true,
-      message: "Booking cancelled successfully"
-    });
-
+    res.json({ success: true });
   } catch (err) {
     console.error('Cancellation error:', err);
     res.status(500).json({ 
-      error: "Internal server error during cancellation" 
+      error: "Cancellation failed. Please try again later." 
     });
   }
 });
