@@ -23,7 +23,10 @@ router.post('/', async (req, res) => {
   try {
     // Check for overlapping bookings
     const conflictCheck = await pool.query(
-      'SELECT * FROM bookings WHERE room_id = $1 AND (start_time, end_time) OVERLAPS ($2, $3)',
+      `SELECT * FROM bookings 
+      WHERE room_id = $1 
+      AND (start_time, end_time) OVERLAPS ($2, $3)
+      AND is_cancelled = false`,
       [room_id, start_time, end_time]
     );
     if (conflictCheck.rows.length > 0) {
