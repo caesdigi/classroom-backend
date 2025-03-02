@@ -30,8 +30,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: "Slot already booked" });
     }
     // Add UID validation
-    if (!/^\d{10}$/.test(uid)) {
-      return res.status(400).json({ error: "UID must be 10 digits" });
+    if (!/^\d{5}$/.test(uid)) {
+      return res.status(400).json({ error: "Invalid UID format" });
     }
 
     const result = await pool.query(
