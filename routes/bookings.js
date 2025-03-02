@@ -53,18 +53,21 @@ router.post('/cancel', async (req, res) => {
   const { booking_id, uid_attempt } = req.body;
   
   try {
-    // Verify UID match using the original cancel_token as UUID
+    // Verify UID match using the uid column (5 digits)
     const result = await pool.query(
       `UPDATE bookings 
        SET is_cancelled = true 
        WHERE id = $1 
        AND uid = $2 
+       AND is_cancelled = false 
        RETURNING id`,
       [booking_id, uid_attempt]
     );
 
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: "Invalid cancellation code" });
+      return res.status(400).json({ 
+        error: "Invalid cancellation code or already cancelled" 
+      });
     }
 
     res.json({ success: true });
