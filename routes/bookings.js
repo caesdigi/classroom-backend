@@ -47,4 +47,32 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Cancel booking
+router.post('/cancel', async (req, res) => {
+  const { booking_id, uid_attempt } = req.body;
+  
+  try {
+    // Verify UID
+    const result = await pool.query(
+      'SELECT uid FROM bookings WHERE id = $1 AND uid = $2',
+      [booking_id, uid_attempt]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: "Invalid cancellation code" });
+    }
+
+    // Mark as cancelled
+    await pool.query(
+      'UPDATE bookings SET cancel_token = TRUE WHERE id = $1',
+      [booking_id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
