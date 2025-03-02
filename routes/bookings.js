@@ -4,11 +4,12 @@ const pool = require('../db');
 // Get bookings for a room/date
 router.get('/', async (req, res) => {
   try {
-    const { start_date, end_date } = req.query;
+    const { start_date, end_date, show_cancelled } = req.query;
     const result = await pool.query(
       `SELECT * FROM bookings 
        WHERE start_time < $2 
-       AND end_time > $1`,
+       AND end_time > $1
+       ${show_cancelled === 'false' ? 'AND is_cancelled = false' : ''}`, 
       [start_date, end_date]
     );
     res.json(result.rows);
