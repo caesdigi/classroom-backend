@@ -22,6 +22,27 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { room_id, student_name, student_email, student_phone, uid, remarks, start_time, end_time } = req.body;
   try {
+
+    // Add before conflict check
+    const availabilityCheck = await pool.query(
+      `SELECT * FROM availability 
+      WHERE room_id = $1
+      AND $2::date BETWEEN min_date AND max_date
+      AND $2::date != ALL(blocked_dates)
+      AND EXTRACT(DOW FROM $2::date) = ANY(allowed_days)
+      AND $3::time BETWEEN start_time AND end_time
+      AND EXISTS(
+          SELECT 1 
+          FROM unnest(allowed_durations) AS d
+          WHERE d = EXTRACT(EPOCH FROM ($4::time - $3::time))/60
+      )`,
+      [room_id, start_date, start_time, end_time]
+    );
+
+    if (availabilityCheck.rows.length === 0) {
+      return res.status(400).json({ error: "Invalid time slot" });
+    }
+
     // Check for overlapping bookings
     const conflictCheck = await pool.query(
       `SELECT * FROM bookings 
