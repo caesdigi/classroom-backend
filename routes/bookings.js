@@ -1,6 +1,20 @@
 const router = require('express').Router();
 const pool = require('../db');
 
+// Get all available rooms
+router.get('/rooms', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT r.id, r.name 
+      FROM availability a
+      JOIN rooms r ON a.room_id = r.id
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get bookings for a room/date
 router.get('/', async (req, res) => {
   try {
