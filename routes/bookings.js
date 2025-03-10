@@ -4,9 +4,12 @@ const pool = require('../db');
 // Get bookings for a room/date
 router.get('/', async (req, res) => {
   try {
-    const { start_date, end_date, show_cancelled } = req.query;
     const result = await pool.query(
-      `SELECT * FROM bookings 
+      `SELECT 
+        id, room_id, student_name, student_email, 
+        student_phone, start_time, end_time, 
+        cancel_token, remarks, is_cancelled, can_cancel
+       FROM bookings 
        WHERE start_time < $2 
        AND end_time > $1
        ${show_cancelled === 'false' ? 'AND is_cancelled = false' : ''}`, 
@@ -40,9 +43,12 @@ router.post('/', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO bookings 
-      (room_id, student_name, student_email, student_phone, uid, remarks, start_time, end_time) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [room_id, student_name, student_email, student_phone, uid, remarks, start_time, end_time]
+      (room_id, student_name, student_email, student_phone, 
+       uid, remarks, start_time, end_time, can_cancel) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE) 
+      RETURNING *`,
+      [room_id, student_name, student_email, student_phone, 
+       uid, remarks, start_time, end_time]
     );
 
     // Send confirmation email (see next step)
