@@ -22,7 +22,11 @@ const corsOptions = {
 
 // Import routes
 const bookingsRouter = require('./routes/bookings');
+const roomsRouter = require('./routes/rooms');
+const availabilityRouter = require('./routes/availability');
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/rooms', roomsRouter);
+app.use('/api/availability', availabilityRouter);
 
 // Start server
 const PORT = process.env.PORT || 3001;
