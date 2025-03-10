@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const pool = require('../db');
 
-uter.get('/', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { room_id } = req.query;
     const result = await pool.query(
