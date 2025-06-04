@@ -17,6 +17,7 @@ router.get('/catalogue', async (req, res) => {
       JOIN equipment_subtypes es ON e.subtype_id = es.subtype_id
       JOIN equipment_types et ON es.type_id = et.type_id
       GROUP BY product_name, es.subtype_name, et.type_name, et.type_id, es.subtype_id
+      ORDER BY product_name;  -- Added alphabetical ordering
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -38,6 +39,7 @@ router.get('/details/:product_name', async (req, res) => {
       JOIN equipment_subtypes es ON e.subtype_id = es.subtype_id
       JOIN equipment_types et ON es.type_id = et.type_id
       WHERE e.product_name = $1
+      ORDER BY variant;  -- Added alphabetical ordering for variants
     `;
     const result = await pool.query(query, [product_name]);
     res.json(result.rows);
