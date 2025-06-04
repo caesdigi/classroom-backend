@@ -46,4 +46,19 @@ router.get('/details/:product_name', async (req, res) => {
   }
 });
 
+// Get non-empty subtypes (subtypes with at least one equipment)
+router.get('/non-empty-subtypes', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT es.subtype_id, es.subtype_name, es.type_id
+      FROM equipment e
+      JOIN equipment_subtypes es ON e.subtype_id = es.subtype_id
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
