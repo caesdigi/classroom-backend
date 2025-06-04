@@ -25,9 +25,13 @@ const corsOptions = {
 const bookingsRouter = require('./routes/bookings');
 const roomsRouter = require('./routes/rooms');
 const availabilityRouter = require('./routes/availability');
+const equipmentRouter = require('./routes/equipment');
+const equipmentTypesRouter = require('./routes/equipmentTypes');
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api/availability', availabilityRouter);
+app.use('/api/equipment', equipmentRouter);
+app.use('/api/equipment-types', equipmentTypesRouter);
 
 // Start server
 const PORT = process.env.PORT || 3001;
