@@ -74,7 +74,8 @@ router.post('/reserve', async (req, res) => {
       student_email, 
       student_phone, 
       uid, 
-      checkout_date 
+      checkout_date,
+      remarks
     } = req.body;
 
     await client.query('BEGIN');
@@ -109,9 +110,10 @@ router.post('/reserve', async (req, res) => {
         checkout_date, 
         student_name, 
         student_email, 
-        student_phone
+        student_phone,
+        remarks
       )
-      VALUES ($1, $2, NOW(), $3, $4, $5, $6)
+      VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
       RETURNING transaction_id;
     `;
     
@@ -121,7 +123,8 @@ router.post('/reserve', async (req, res) => {
       new Date(`${checkout_date}T00:00:00+08:00`), // HKT time
       student_name,
       student_email,
-      student_phone
+      student_phone,
+      remarks
     ]);
 
     // 3. Update availability
