@@ -143,4 +143,66 @@ router.post('/reserve', async (req, res) => {
   }
 });
 
+// Add this route at the bottom of the file
+router.get('/reservations/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    
+    // Get student name from the first transaction
+    const nameQuery = `
+      SELECT student_name 
+      FROM transactions 
+      WHERE uid = $1 
+      LIMIT 1;
+    `;
+    const nameRes = await pool.query(nameQuery, [uid]);
+    const studentName = nameRes.rows[0]?.student_name || '';
+
+    // Get all reservations for the UID
+    const query = `
+      SELECT 
+        t.*,
+        e.product_name,
+        e.variant,
+        e.image_url
+      FROM transactions t
+      JOIN equipment e ON t.equipment_id = e.equipment_id
+      WHERE t.uid = $1
+      ORDER BY t.reserve_date DESC;
+    `;
+    const result = await pool.query(query, [uid]);
+
+    // Categorize reservations
+    const pending = [];
+    const checkedout = [];
+    const checkedin = [];
+
+    result.rows.forEach(transaction => {
+      if (!transaction.return_date && !transaction.checkin_date) {
+        pending.push(transaction);
+      } else if (transaction.return_date && !transaction.checkin_date) {
+        checkedout.push(transaction);
+      } else if (transaction.return_date && transaction.checkin_date) {
+        checkedin.push(transaction);
+      }
+    });
+
+    // Sort according to requirements
+    pending.sort((a, b) => new Date(b.reserve_date) - new Date(a.reserve_date));
+    checkedout.sort((a, b) => new Date(a.return_date) - new Date(b.return_date));
+    checkedin.sort((a, b) => new Date(b.checkin_date) - new Date(a.checkin_date));
+
+    res.json({
+      studentName,
+      reservations: {
+        pending,
+        checkedout,
+        checkedin
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
