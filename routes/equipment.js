@@ -208,4 +208,22 @@ router.get('/reservations/:uid', async (req, res) => {
   }
 });
 
+// Add this route in routes/equipment.js
+router.get('/check-uid/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 
+        FROM transactions 
+        WHERE uid = $1
+      ) as uid_exists;
+    `;
+    const result = await pool.query(query, [uid]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
