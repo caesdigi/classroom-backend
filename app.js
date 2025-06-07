@@ -14,7 +14,7 @@ const corsOptions = {
       'http://127.0.0.1:5173', // Alternative localhost
       'https://classroom-frontend-a0n6.onrender.com' //production domain
     ],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    methods: ['GET', 'POST', 'PATCH'],
     credentials: true
   };
 
