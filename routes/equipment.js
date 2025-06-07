@@ -265,13 +265,18 @@ router.patch('/checkout/:transaction_id', async (req, res) => {
   try {
     const { transaction_id } = req.params;
     const { return_date } = req.body;
-    
+
+    // Add validation
+    if (!return_date || isNaN(new Date(return_date))) {
+      return res.status(400).json({ error: 'Invalid return date format' });
+    }
+
     await client.query('BEGIN');
     
-    // 1. Update transaction with return date
+    // Explicitly cast to timestamptz
     const updateTransactionQuery = `
       UPDATE transactions
-      SET return_date = $1
+      SET return_date = $1::timestamptz
       WHERE transaction_id = $2
       RETURNING equipment_id, student_name;
     `;
@@ -286,27 +291,29 @@ router.patch('/checkout/:transaction_id', async (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
     
-    const { equipment_id, student_name } = transactionRes.rows[0];
+    const { equipment_id } = transactionRes.rows[0];
     
-    // 2. Update equipment availability to false (since it's checked out)
-    const updateEquipmentQuery = `
-      UPDATE equipment 
-      SET availability = false 
-      WHERE equipment_id = $1;
-    `;
-    await client.query(updateEquipmentQuery, [equipment_id]);
+    // Verify equipment exists
+    const equipmentCheck = await client.query(
+      'SELECT * FROM equipment WHERE equipment_id = $1',
+      [equipment_id]
+    );
     
+    if (equipmentCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Associated equipment not found' });
+    }
+
     await client.query('COMMIT');
+    res.json({ success: true });
     
-    res.json({ 
-      success: true,
-      student_name,
-      equipment_id
-    });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Checkout failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('DATABASE ERROR:', err.message); // Detailed logging
+    res.status(500).json({ 
+      error: 'Checkout failed',
+      details: err.message // Return actual error to frontend
+    });
   } finally {
     client.release();
   }
