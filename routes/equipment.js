@@ -226,4 +226,62 @@ router.get('/check-uid/:uid', async (req, res) => {
   }
 });
 
+// Get pending checkout transactions
+router.get('/pending-checkout', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        t.transaction_id,
+        t.uid,
+        t.student_name,
+        t.reserve_date,
+        t.checkout_date,
+        t.return_date,
+        t.remarks,
+        e.equipment_id,
+        e.product_name,
+        e.variant,
+        e.tag,
+        e.image_url
+      FROM transactions t
+      JOIN equipment e ON t.equipment_id = e.equipment_id
+      WHERE t.return_date IS NULL 
+        AND t.checkin_date IS NULL
+        AND t.reserve_date IS NOT NULL
+        AND t.checkout_date IS NOT NULL
+      ORDER BY t.reserve_date ASC;
+    `;
+    
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update return date for checkout
+router.patch('/checkout/:transaction_id', async (req, res) => {
+  try {
+    const { transaction_id } = req.params;
+    const { return_date } = req.body;
+    
+    const updateQuery = `
+      UPDATE transactions
+      SET return_date = $1
+      WHERE transaction_id = $2
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(updateQuery, [return_date, transaction_id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
