@@ -310,6 +310,7 @@ router.patch('/checkout/:transaction_id', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('DATABASE ERROR:', err.message); // Detailed logging
+    console.error('Received return_date:', return_date);
     res.status(500).json({ 
       error: 'Checkout failed',
       details: err.message // Return actual error to frontend
