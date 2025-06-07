@@ -226,4 +226,76 @@ router.get('/check-uid/:uid', async (req, res) => {
   }
 });
 
+// Get pending checkout equipment
+router.get('/pending-checkout', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        t.transaction_id,
+        t.uid,
+        t.student_name,
+        t.reserve_date,
+        t.checkout_date,
+        t.return_date,
+        t.checkin_date,
+        t.remarks,
+        e.equipment_id,
+        e.product_name,
+        e.variant,
+        e.tag,
+        e.image_url
+      FROM transactions t
+      JOIN equipment e ON t.equipment_id = e.equipment_id
+      WHERE t.return_date IS NULL 
+        AND t.checkin_date IS NULL
+        AND t.reserve_date IS NOT NULL
+        AND t.checkout_date IS NOT NULL
+      ORDER BY e.product_name ASC, e.variant ASC, e.tag ASC;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Process equipment checkout
+router.patch('/checkout/:transactionId', async (req, res) => {
+  const { transactionId } = req.params;
+  const { returnDate } = req.body;
+
+  if (!returnDate) {
+    return res.status(400).json({ error: 'Return date is required' });
+  }
+
+  try {
+    // Convert to HKT timezone (UTC+8)
+    const returnDateTime = new Date(`${returnDate}T23:59:59+08:00`).toISOString();
+    const checkoutDateTime = new Date().toISOString();
+
+    const updateQuery = `
+      UPDATE transactions
+      SET 
+        checkout_date = $1,
+        return_date = $2
+      WHERE transaction_id = $3
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(updateQuery, [
+      checkoutDateTime,
+      returnDateTime,
+      transactionId
+    ]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
