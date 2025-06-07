@@ -259,28 +259,56 @@ router.get('/pending-checkout', async (req, res) => {
   }
 });
 
-// Update return date for checkout
+// Add this new route to handle checkout
 router.patch('/checkout/:transaction_id', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { transaction_id } = req.params;
     const { return_date } = req.body;
     
-    const updateQuery = `
+    await client.query('BEGIN');
+    
+    // 1. Update transaction with return date
+    const updateTransactionQuery = `
       UPDATE transactions
       SET return_date = $1
       WHERE transaction_id = $2
-      RETURNING *;
+      RETURNING equipment_id, student_name;
     `;
     
-    const result = await pool.query(updateQuery, [return_date, transaction_id]);
+    const transactionRes = await client.query(updateTransactionQuery, [
+      return_date,
+      transaction_id
+    ]);
     
-    if (result.rows.length === 0) {
+    if (transactionRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Transaction not found' });
     }
     
-    res.json({ success: true });
+    const { equipment_id, student_name } = transactionRes.rows[0];
+    
+    // 2. Update equipment availability to false (since it's checked out)
+    const updateEquipmentQuery = `
+      UPDATE equipment 
+      SET availability = false 
+      WHERE equipment_id = $1;
+    `;
+    await client.query(updateEquipmentQuery, [equipment_id]);
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true,
+      student_name,
+      equipment_id
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    await client.query('ROLLBACK');
+    console.error('Checkout failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
