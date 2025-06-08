@@ -298,4 +298,81 @@ router.patch('/checkout/:transactionId', async (req, res) => {
   }
 });
 
+// Get pending check-in equipment
+router.get('/pending-checkin', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        t.transaction_id,
+        t.uid,
+        t.student_name,
+        t.reserve_date,
+        t.checkout_date,
+        t.return_date,
+        t.checkin_date,
+        t.remarks,
+        e.equipment_id,
+        e.product_name,
+        e.variant,
+        e.tag,
+        e.image_url
+      FROM transactions t
+      JOIN equipment e ON t.equipment_id = e.equipment_id
+      WHERE t.return_date IS NOT NULL 
+        AND t.checkin_date IS NULL
+        AND t.reserve_date IS NOT NULL
+        AND t.checkout_date IS NOT NULL
+      ORDER BY e.product_name ASC, e.variant ASC, e.tag ASC;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Process equipment check-in
+router.patch('/checkin/:transactionId', async (req, res) => {
+  const { transactionId } = req.params;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    
+    // 1. Update checkin_date
+    const updateTransactionQuery = `
+      UPDATE transactions
+      SET checkin_date = NOW()
+      WHERE transaction_id = $1
+      RETURNING equipment_id;
+    `;
+    
+    const transactionResult = await client.query(updateTransactionQuery, [transactionId]);
+    
+    if (transactionResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+    
+    const equipmentId = transactionResult.rows[0].equipment_id;
+    
+    // 2. Update equipment availability
+    const updateEquipmentQuery = `
+      UPDATE equipment 
+      SET availability = true 
+      WHERE equipment_id = $1;
+    `;
+    await client.query(updateEquipmentQuery, [equipmentId]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Check-in error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
