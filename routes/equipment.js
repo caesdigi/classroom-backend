@@ -179,9 +179,16 @@ router.get('/reservations/:uid', async (req, res) => {
     const pending = [];
     const checkedout = [];
     const checkedin = [];
+    const cancelled = []; // Add cancelled array
 
     result.rows.forEach(transaction => {
-      if (!transaction.return_date && !transaction.checkin_date) {
+      // First, check for cancelled reservations
+      if (transaction.reserve_date !== null && 
+          transaction.checkout_date === null && 
+          transaction.return_date === null && 
+          transaction.checkin_date === null) {
+        cancelled.push(transaction);
+      } else if (!transaction.return_date && !transaction.checkin_date) {
         pending.push(transaction);
       } else if (transaction.return_date && !transaction.checkin_date) {
         checkedout.push(transaction);
@@ -194,13 +201,15 @@ router.get('/reservations/:uid', async (req, res) => {
     pending.sort((a, b) => new Date(b.reserve_date) - new Date(a.reserve_date));
     checkedout.sort((a, b) => new Date(a.return_date) - new Date(b.return_date));
     checkedin.sort((a, b) => new Date(b.checkin_date) - new Date(a.checkin_date));
+    cancelled.sort((a, b) => new Date(b.reserve_date) - new Date(a.reserve_date)); // Sort cancelled
 
     res.json({
       studentName,
       reservations: {
         pending,
         checkedout,
-        checkedin
+        checkedin,
+        cancelled // Include cancelled in response
       }
     });
   } catch (err) {
@@ -369,6 +378,57 @@ router.patch('/checkin/:transactionId', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Check-in error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Add this route for cancelling reservations
+router.patch('/cancel-reservation/:transactionId', async (req, res) => {
+  const { transactionId } = req.params;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Get the equipment_id from the transaction
+    const getQuery = `
+      SELECT equipment_id 
+      FROM transactions 
+      WHERE transaction_id = $1
+      FOR UPDATE;
+    `;
+    const getRes = await client.query(getQuery, [transactionId]);
+    
+    if (getRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    const equipmentId = getRes.rows[0].equipment_id;
+
+    // 2. Update the transaction: set checkout_date to NULL
+    const updateTransactionQuery = `
+      UPDATE transactions
+      SET checkout_date = NULL
+      WHERE transaction_id = $1;
+    `;
+    await client.query(updateTransactionQuery, [transactionId]);
+
+    // 3. Update the equipment: set availability to TRUE
+    const updateEquipmentQuery = `
+      UPDATE equipment 
+      SET availability = true 
+      WHERE equipment_id = $1;
+    `;
+    await client.query(updateEquipmentQuery, [equipmentId]);
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Cancellation error:', err);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
